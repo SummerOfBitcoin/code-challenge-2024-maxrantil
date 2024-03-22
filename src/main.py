@@ -1,22 +1,35 @@
 import json
 import os
-
 class Transaction:
     def __init__(self, data):
-        self.version = data['version']
-        self.locktime = data['locktime']
-        self.vin = data['vin']
-        self.vout = data['vout']
+        # Initialize the transaction object with data from the JSON structure
+        self.version = data.get('version', 0)
+        self.locktime = data.get('locktime', 0)
+        self.vin = data.get('vin', [])
+        self.vout = data.get('vout', [])
         self.txid = self.calculate_txid()
 
     def calculate_txid(self):
-        # Placeholder for TXID calculation. You might want to implement a hash of the transaction details.
-        # This is a simplified example. Real Bitcoin transactions' TXID is a double SHA256 hash of the serialization of all transaction details.
+        # Implementation for TXID calculation (placeholder)
         return hash(json.dumps(self.__dict__, sort_keys=True))
 
     def is_valid(self):
-        # Basic validation: Ensure there's at least one input and one output, and check other conditions as needed.
-        return len(self.vin) > 0 and len(self.vout) > 0 and self.locktime >= 0
+        # Check there's at least one input and one output
+        if len(self.vin) <= 0 or len(self.vout) <= 0:
+            return False
+
+        # Sum the values of all outputs
+        total_output = sum(out.get('value', 0) for out in self.vout)
+
+        # Sum the values of all inputs
+        total_input = sum(in_.get('prevout', {}).get('value', 0) for in_ in self.vin)
+
+        # Ensure total input is at least as much as total output and all outputs have positive values
+        if total_input < total_output or any(out.get('value', 0) <= 0 for out in self.vout):
+            return False
+
+        # Further criteria (e.g., locktime >= 0) are already handled
+        return True
 
 def load_transactions(mempool_path='mempool/'):
     transactions = []
