@@ -3,3 +3,4 @@ tests/
 max.sh
 __pycache__
 output.txt
+env
