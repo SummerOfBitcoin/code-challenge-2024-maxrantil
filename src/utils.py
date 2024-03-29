@@ -51,8 +51,7 @@ def double_sha256(hex_str):
     hash_once = hashlib.sha256(bytes_).digest()
     hash_twice = hashlib.sha256(hash_once).digest()
     # Correctly reverse the hash bytes before converting to hex
-    return hash_twice[::-1].hex()
-
+    return hash_twice.hex()
 
 def calculate_merkle_root(transactions):
     # Check if the list of transactions is empty
