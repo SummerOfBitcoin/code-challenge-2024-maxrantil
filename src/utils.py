@@ -18,10 +18,10 @@ def load_transactions(mempool_path='mempool/'):
                     data = json.load(file)
 
                     # Use filename (without .json) as txid
-                    txid_from_filename = filename[:-5]
+                    # txid_from_filename = filename[:-5]
 
                     # transaction = Transaction(data)
-                    transaction = Transaction(data, txid=txid_from_filename)
+                    transaction = Transaction(data)
 
                     # Determine if any input contains a 'witness' field, indicating a SegWit transaction
                     is_segwit = any('witness' in vin for vin in data.get('vin', []))
@@ -35,7 +35,7 @@ def load_transactions(mempool_path='mempool/'):
                         serialized_data = transaction.serialize()
                         txid = double_sha256(serialized_data)
                     if transaction.is_valid():
-                        # transaction.txid = txid
+                        transaction.txid = txid
                         valid_transactions.append(transaction)
                     else:
                         invalid_transactions += 1
@@ -51,8 +51,7 @@ def double_sha256(hex_str):
     hash_once = hashlib.sha256(bytes_).digest()
     hash_twice = hashlib.sha256(hash_once).digest()
     # Correctly reverse the hash bytes before converting to hex
-    return hash_twice[::-1].hex()
-
+    return hash_twice.hex()
 
 
 def calculate_merkle_root(transactions):
@@ -62,7 +61,7 @@ def calculate_merkle_root(transactions):
 
     # Initial processing of transaction IDs: convert each to little-endian hex
     tx_hashes = []
-    for tx in transactions:
+    for tx in transactions[1:]:
         little_endian_hex = bytes.fromhex(tx)[::-1].hex()
         tx_hashes.append(little_endian_hex)
 
@@ -205,11 +204,15 @@ def mine_block(valid_transactions, bitcoin_address, previous_block_hash, difficu
     # Calculate the TXID for the coinbase transaction from its serialized form
     coinbase_tx.txid = coinbase_serialized
 
-    # Insert the coinbase transaction at the beginning of the list of valid transactions
+    # Insert the coinbase transaction at the beginning of the list
     valid_transactions.insert(0, coinbase_tx)
 
+    # Insert the hashed coinbase transaction at the beginning of the list of valid transactions
+    coinbase_hash = double_sha256(coinbase_serialized)
+    valid_transactions.insert(1, coinbase_hash)
+
     # Generate txids list including the actual TXID of the coinbase_tx
-    txids = [tx.txid for tx in valid_transactions]
+    txids = [tx.txid if isinstance(tx, Transaction) else tx for tx in valid_transactions]
 
     # Calculate the Merkle root of the txids list
     merkle_root = calculate_merkle_root(txids)
@@ -240,6 +243,10 @@ def mine_block(valid_transactions, bitcoin_address, previous_block_hash, difficu
 
     # Append the txid of the coinbase transaction and other transactions
     for tx in valid_transactions:
-        output_lines.append(tx.txid)
+        if isinstance(tx, Transaction):
+            output_lines.append(tx.txid)
+        else:
+            # If it's a string (hash), append it directly
+            output_lines.append(tx)
 
     return output_lines
