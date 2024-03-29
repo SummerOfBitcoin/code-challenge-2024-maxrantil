@@ -4,8 +4,8 @@ import json
 import hashlib
 import time
 import struct
-from transaction import Transaction
 
+from transaction import Transaction
 
 
 def load_transactions(mempool_path='mempool/'):
@@ -16,17 +16,26 @@ def load_transactions(mempool_path='mempool/'):
             with open(os.path.join(mempool_path, filename), 'r') as file:
                 try:
                     data = json.load(file)
+
                     # Use filename (without .json) as txid
                     txid_from_filename = filename[:-5]
+
+                    # transaction = Transaction(data)
                     transaction = Transaction(data, txid=txid_from_filename)
-                    serialized_data = transaction.serialize()
-                    # print(f"Serialized data for transaction {txid_from_filename}: {serialized_data}")
-                    calculated_txid = double_sha256(serialized_data)
-                    if calculated_txid == txid_from_filename:
-                        print(f"Transaction {txid_from_filename} is valid.")
-                    # else:
-                        # print(f"Transaction {txid_from_filename} is invalid.")
+
+                    # Determine if any input contains a 'witness' field, indicating a SegWit transaction
+                    is_segwit = any('witness' in vin for vin in data.get('vin', []))
+
+                    if is_segwit:
+                        # SegWit transactions, use the serialization method without witness data for txid calculation.
+                        serialized_data_without_witness = transaction.serialize(include_witness=False)
+                        txid = double_sha256(serialized_data_without_witness)
+                    else:
+                        # Legacy transactions
+                        serialized_data = transaction.serialize()
+                        txid = double_sha256(serialized_data)
                     if transaction.is_valid():
+                        # transaction.txid = txid
                         valid_transactions.append(transaction)
                     else:
                         invalid_transactions += 1
@@ -41,7 +50,9 @@ def double_sha256(hex_str):
     bytes_ = bytes.fromhex(hex_str)  # Convert hex string to bytes
     hash_once = hashlib.sha256(bytes_).digest()
     hash_twice = hashlib.sha256(hash_once).digest()
-    return hash_twice.hex()
+    # Correctly reverse the hash bytes before converting to hex
+    return hash_twice[::-1].hex()
+
 
 
 def calculate_merkle_root(transactions):

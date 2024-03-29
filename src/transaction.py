@@ -15,12 +15,12 @@ class Transaction:
         self.txid = txid
 
 
-    def serialize(self):
+    def serialize(self, include_witness=True):
         # Start with serializing the transaction version as a 4-byte little-endian integer.
         serialized = self.version.to_bytes(4, byteorder='little')
 
         # Check if any of the transaction inputs (vin) contain a witness field.
-        segwit = any('witness' in vin for vin in self.vin)
+        segwit = any('witness' in vin for vin in self.vin) and include_witness
 
         if segwit:
             # If the transaction is SegWit, add the marker (0x00) and flag (0x01) bytes.

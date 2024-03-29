@@ -26,9 +26,23 @@ fi
 echo "Activating virtual environment..."
 source "${VENV_DIR}"/bin/activate
 
-# Install dependencies from requirements.txt
-echo "Installing dependencies..."
-pip install -r requirements.txt
+# Function to check if all dependencies are already installed
+dependencies_satisfied() {
+    while read requirement; do
+        if ! pip show "${requirement%%=*}" &> /dev/null; then
+            return 1
+        fi
+    done < requirements.txt
+    return 0
+}
+
+# Install dependencies from requirements.txt only if necessary
+if dependencies_satisfied; then
+    echo "All dependencies are already satisfied."
+else
+    echo "Installing dependencies..."
+    pip install -r requirements.txt &> /dev/null
+fi
 
 # Run your Python script
 echo "Running script..."
