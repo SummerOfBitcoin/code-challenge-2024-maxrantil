@@ -62,7 +62,6 @@ class Transaction:
         return serialized.hex()
 
 
-
     def is_valid(self):
         # Check there's at least one input and one output
         if len(self.vin) <= 0 or len(self.vout) <= 0:
