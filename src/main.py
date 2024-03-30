@@ -1,4 +1,5 @@
-from utils import load_transactions, mine_block
+from block import mine_block
+from transaction import load_transactions
 
 if __name__ == "__main__":
     mempool_path = 'mempool/'
@@ -11,8 +12,12 @@ if __name__ == "__main__":
     block_height = 21
 
     # Start mining with adjusted difficulty target
-    output_lines = mine_block(valid_transactions, bitcoin_address,
-               previous_block_hash, difficulty_target, block_height)
+    output_lines = mine_block(
+        valid_transactions,
+        bitcoin_address,
+        previous_block_hash,
+        difficulty_target,
+        block_height)
 
     # Write the output to the file
     with open("output.txt", "w") as outfile:
