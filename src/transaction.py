@@ -146,11 +146,6 @@ def load_transactions(mempool_path='mempool/'):
             with open(os.path.join(mempool_path, filename), 'r') as file:
                 try:
                     data = json.load(file)
-
-                    # Use filename (without .json) as txid
-                    # txid_from_filename = filename[:-5]
-
-                    # transaction = Transaction(data)
                     transaction = Transaction(data)
 
                     # Determine if any input contains a 'witness' field,
@@ -170,7 +165,9 @@ def load_transactions(mempool_path='mempool/'):
                         serialized_data = transaction.serialize()
                         txid = double_sha256(serialized_data)
                     if transaction.is_valid():
-                        transaction.txid = txid
+                        txid_bytes = bytes.fromhex(txid)
+                        txid_little_endian = txid_bytes[::-1].hex()
+                        transaction.txid = txid_little_endian
                         valid_transactions.append(transaction)
                     else:
                         invalid_transactions += 1
