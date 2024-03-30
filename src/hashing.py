@@ -16,7 +16,7 @@ def calculate_merkle_root(transactions):
 
     # Initial processing of transaction IDs: convert each to little-endian hex
     tx_hashes = []
-    for tx in transactions[1:]:
+    for tx in transactions:
         little_endian_hex = bytes.fromhex(tx)[::-1].hex()
         tx_hashes.append(little_endian_hex)
 

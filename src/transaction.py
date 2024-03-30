@@ -15,6 +15,7 @@ class Transaction:
         self.locktime = data.get('locktime', 0)
         self.vin = data.get('vin', [])
         self.vout = data.get('vout', [])
+        self.witnesses = [vin.get('witness', []) for vin in self.vin]
         self.is_coinbase = is_coinbase
         self.txid = txid
 
@@ -136,6 +137,15 @@ class Transaction:
     #     ]
     #     data_to_sign = hashlib.sha256(''.join(tx_parts).encode()).hexdigest()
     #     return data_to_sign
+
+    # Returns the concatenated witness data for the transaction.
+    def get_witness_data(self):
+        concatenated_witness_data = b''
+        for witness in self.witnesses:
+            # Convert each witness item from hex to bytes and concatenate
+            for w in witness:
+                concatenated_witness_data += bytes.fromhex(w)
+        return concatenated_witness_data
 
 
 def load_transactions(mempool_path='mempool/'):

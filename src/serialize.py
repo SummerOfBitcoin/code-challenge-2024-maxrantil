@@ -101,3 +101,17 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
         tx_out_count +
         txouts +
         locktime).hex()
+
+
+
+# Serialize the block height as per BIP34 for inclusion in a coinbase transaction's scriptSig.
+def serialize_block_height(block_height):
+    # Convert the integer block height to a byte array in little-endian format
+    height_bytes = block_height.to_bytes((block_height.bit_length() + 7) // 8, 'little')
+
+    # The length of the height_bytes determines how it will be pushed onto the stack.
+    # For block heights, this will usually be a small number, so we can directly use the byte count as the opcode.
+    # This simplification assumes all block heights result in a push data size <= 75 bytes.
+    push_opcode = len(height_bytes).to_bytes(1, 'little')
+
+    return push_opcode + height_bytes

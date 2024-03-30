@@ -9,7 +9,8 @@ if __name__ == "__main__":
     previous_block_hash = 'ffffffffffffffffffffffffffffffffffffffffffffffffffff00000000'
     difficulty_target = '0000ffff00000000000000000000000000000000000000000000000000000000'
     bitcoin_address = "1LuckyR1fFHEsXYyx5QK4UFzv3PEAepPMK"
-    block_height = 21
+    block_height = 834637
+    block_subsidy = 6.25
 
     # Start mining with adjusted difficulty target
     output_lines = mine_block(
@@ -17,7 +18,8 @@ if __name__ == "__main__":
         bitcoin_address,
         previous_block_hash,
         difficulty_target,
-        block_height)
+        block_height,
+        block_subsidy)
 
     # Write the output to the file
     with open("output.txt", "w") as outfile:
