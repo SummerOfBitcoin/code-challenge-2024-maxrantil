@@ -3,7 +3,7 @@ import time
 import struct
 
 from transaction import Transaction
-from coinbase import create_coinbase_transaction
+from coinbase import create_coinbase_transaction, calculate_witness_commitment
 from hashing import double_sha256, calculate_merkle_root
 from serialize import serialize_coinbase_tx
 
@@ -46,33 +46,24 @@ def mine_block(
         bitcoin_address,
         previous_block_hash,
         difficulty_target,
-        block_height):
+        block_height,
+        block_subsidy):
     # Create the coinbase transaction as a Transaction instance
-    coinbase_tx = create_coinbase_transaction(bitcoin_address, 50)
-
-    # Serialize the coinbase transaction
+    coinbase_tx = create_coinbase_transaction(bitcoin_address, block_subsidy, block_height, valid_transactions)
+    print(coinbase_tx)
     coinbase_serialized = serialize_coinbase_tx(coinbase_tx, block_height)
-
-    # Calculate the TXID for the coinbase transaction from its serialized form
-    coinbase_tx.txid = coinbase_serialized
-
-    # Insert the coinbase transaction at the beginning of the list
-    valid_transactions.insert(0, coinbase_tx)
 
     # Insert the hashed coinbase transaction at the beginning of the list of
     # valid transactions
     coinbase_hash = double_sha256(coinbase_serialized)
-    valid_transactions.insert(1, coinbase_hash)
+    coinbase_tx.txid = coinbase_hash
+    valid_transactions.insert(0, coinbase_tx)
 
-    # Generate txids list including the actual TXID of the coinbase_tx
-    txids = [
-        tx.txid if isinstance(
-            tx,
-            Transaction) else tx for tx in valid_transactions]
+    # Generate txids list including the actual TXID of the updated coinbase_tx
+    txids = [tx.txid for tx in valid_transactions]
 
     # Calculate the Merkle root of the txids list
     merkle_root = calculate_merkle_root(txids)
-
     version = 4  # Block Version 4 became active in December 2015
     timestamp = int(time.time())
     nonce = 0
@@ -92,24 +83,23 @@ def mine_block(
             timestamp,
             bits,
             nonce)
-        header_hash = hashlib.sha256(hashlib.sha256(header).digest()).digest()
 
+        header_hash = double_sha256(header.hex())
         reversed_hash = header_hash[::-1]
 
-        if int(reversed_hash.hex(), 16) < int(difficulty_target, 16):
-            print(f"Block mined! Nonce: {nonce}, Hash: {reversed_hash.hex()}")
+        if int(reversed_hash, 16) < int(difficulty_target, 16):
+            print(f"Block mined! Nonce: {nonce}, Hash: {reversed_hash}")
             break
         nonce += 1
 
     # Prepare the output
     output_lines = [header.hex()]
+    # Add serialized coinbase transaction on line 2
+    output_lines.append(coinbase_serialized)
 
     # Append the txid of the coinbase transaction and other transactions
     for tx in valid_transactions:
-        if isinstance(tx, Transaction):
-            output_lines.append(tx.txid)
-        else:
-            # If it's a string (hash), append it directly
-            output_lines.append(tx)
+        output_lines.append(tx.txid)
+
 
     return output_lines
