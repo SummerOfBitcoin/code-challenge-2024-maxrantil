@@ -69,11 +69,10 @@ class Transaction:
             return False
 
         # Sum the values of all outputs
-        total_output = sum(out.get('value', 0)for out in self.vout)
+        total_output = sum(out["value"] for out in self.vout)
 
         # Sum the values of all inputs
-        total_input = sum(in_.get('prevout', {}).get('value', 0)
-                          for in_ in self.vin)
+        total_input = sum(in_["prevout"]["value"] for in_ in self.vin)
 
         # Ensure total input is at least as much as total output and all
         # outputs have positive values
