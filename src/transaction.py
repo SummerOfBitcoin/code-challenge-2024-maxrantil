@@ -1,8 +1,8 @@
 import json
 import hashlib
-# from cryptography.hazmat.primitives.asymmetric import ec
-# from cryptography.hazmat.primitives import serialization, hashes
-# from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.exceptions import InvalidSignature
 
 
 class Transaction:
@@ -68,24 +68,28 @@ class Transaction:
             return False
 
         # Sum the values of all outputs
-        total_output = sum(out.get('value', 0)for out in self.vout)
+        total_output = sum(out["value"] for out in self.vout)
 
         # Sum the values of all inputs
-        total_input = sum(in_.get('prevout', {}).get('value', 0)
-                          for in_ in self.vin)
+        total_input = sum(in_["prevout"]["value"] for in_ in self.vin)
 
-        # Ensure total input is at least as much as total output and all
-        # outputs have positive values
-        if total_input < total_output or any(out.get('value', 0) <= 0 for out in self.vout):
+        # # Ensure total input is at least as much as total output and all
+        # # outputs have positive values
+        # if total_input < total_output or any(out.get('value', 0) <= 0 for out in self.vout):
+        #     print(self.vin)
+        #     return False #Check this if 0 value out is valid       ^^
+				# Ensure total input is at least as much as total output
+        if total_input < total_output:
+            print(self.vin)
             return False
 
         # # Verify signatures
-        # if not self.verify_signatures():
-        #     return False
+        if not self.verify_signatures():
+            return False
 
         return True
 
-    # def verify_signatures(self):
+    def verify_signatures(self):
     #     for in_ in self.vin:
     #         # Assuming each input has one or more witnesses, where the last two are
     #         # considered the signature and public key for simplicity
@@ -110,7 +114,7 @@ class Transaction:
     #                 public_key_obj.verify(signature, data.encode(), ec.ECDSA(hashes.SHA256()))
     #             except InvalidSignature:
     #                 return False  # Signature verification failed
-    #     return True
+        return True
 
     # def create_signing_data(self):
     #     # Simplified representation of the transaction for signing
