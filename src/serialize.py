@@ -91,6 +91,12 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
         # Combine the serialized value and scriptPubKey for each output.
         txouts += value + script_len + scriptPubKey_bytes
 
+    # Witness is the commitment and encoded in hex
+    witness_commitment = bytes.fromhex(coinbase_tx.witnesses[0][0])
+    witness_count = struct.pack("<B", 1)  # Number of witness elements
+    witness_len = struct.pack("<B", len(witness_commitment))
+    witness_data = witness_count + witness_len + witness_commitment
+
     # Serialize the locktime as a 4-byte little-endian unsigned integer.
     locktime = struct.pack("<L", coinbase_tx.locktime)
     # Combine all serialized parts of the coinbase transaction.
@@ -100,6 +106,7 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
         txins +
         tx_out_count +
         txouts +
+        witness_data +
         locktime).hex()
 
 

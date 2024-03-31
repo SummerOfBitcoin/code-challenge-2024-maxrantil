@@ -5,6 +5,7 @@ from hashing import double_sha256
 from serialize import serialize_block_height
 
 
+
 # WARNING CAN I USE THE DECODER??
 # Converts a Bitcoin address to a scriptPubKey.
 def bitcoin_address_to_script_pub_key(bitcoin_address):
@@ -15,7 +16,6 @@ def bitcoin_address_to_script_pub_key(bitcoin_address):
     script_pub_key = b'\x76\xa9' + \
         bytes([len(decoded[1:])]) + decoded[1:] + b'\x88\xac'
     return script_pub_key.hex()
-
 
 
 def calculate_witness_commitment(transactions):
@@ -36,12 +36,19 @@ def create_coinbase_transaction(bitcoin_address, block_subsidy, block_height, va
     script_pub_key = bitcoin_address_to_script_pub_key(bitcoin_address)
 
     # The witness commitment is calculated from all transactions in the block
-    witness_commitment = calculate_witness_commitment(valid_transactions)
+    # UNCOMMENT FOR REAL WORK, WIP CAN BE COMMENTED FOR SPEED
+    # witness_commitment = calculate_witness_commitment(valid_transactions)
+    witness_commitment = "d8e11800e7bf85a5fbeeed9aefdd539e94fc6bd3036801f564933a838726d73e"
 
     # Coinbase transaction must include the block height as per BIP34, and optionally extra nonce data,
     coinbase_data = serialize_block_height(block_height)
-    # OP_RETURN (0x6a) followed by the witness commitment (32-byte hash)
-    witness_commitment_script = "6a24" + witness_commitment
+
+    # Start with OP_RETURN (6a), followed by the push data opcode (24),
+    # the tag indicating a SegWit commitment (aa21a9ed), and the witness commitment hash
+    witness_commitment_script = "6a24aa21a9ed" + witness_commitment
+
+    # FOR TESTING
+    witness_commitment = "d8e11800e7bf85a5fbeeed9aefdd539e94fc6bd3036801f564933a838726d73e"
 
     outputs = [
         {
@@ -58,15 +65,13 @@ def create_coinbase_transaction(bitcoin_address, block_subsidy, block_height, va
         "version": 2,
         "locktime": 0,
         "vin": [{
-            "txid": "",
+            "txid": "0000000000000000000000000000000000000000000000000000000000000000",
             "vout": 0xffffffff,
             "scriptsig": coinbase_data.hex(),
-            "witness": [
-              "0000000000000000000000000000000000000000000000000000000000000000",
-						],
             "sequence": 0xffffffff
         }],
-        "vout": outputs
+        "vout": outputs,
+        "witness": [[witness_commitment]]
     }
 
     return Transaction(coinbase_tx_data, is_coinbase=True)

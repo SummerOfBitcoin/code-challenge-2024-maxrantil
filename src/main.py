@@ -4,7 +4,6 @@ from transaction import load_transactions
 if __name__ == "__main__":
     mempool_path = 'mempool/'
     valid_transactions = load_transactions(mempool_path)
-    print(f"Loaded \033[0m\033[92m{len(valid_transactions)}\033[0m valid tx.")
 
     previous_block_hash = 'ffffffffffffffffffffffffffffffffffffffffffffffffffff00000000'
     difficulty_target = '0000ffff00000000000000000000000000000000000000000000000000000000'

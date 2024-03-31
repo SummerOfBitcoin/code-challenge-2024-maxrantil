@@ -1,11 +1,13 @@
 import hashlib
 import time
 import struct
+import json
 
 from transaction import Transaction
 from coinbase import create_coinbase_transaction, calculate_witness_commitment
 from hashing import double_sha256, calculate_merkle_root
 from serialize import serialize_coinbase_tx
+from utils import transaction_to_dict
 
 
 def difficulty_target_to_bits(difficulty_target):
@@ -50,13 +52,13 @@ def mine_block(
         block_subsidy):
     # Create the coinbase transaction as a Transaction instance
     coinbase_tx = create_coinbase_transaction(bitcoin_address, block_subsidy, block_height, valid_transactions)
-    print(coinbase_tx)
     coinbase_serialized = serialize_coinbase_tx(coinbase_tx, block_height)
 
     # Insert the hashed coinbase transaction at the beginning of the list of
     # valid transactions
     coinbase_hash = double_sha256(coinbase_serialized)
     coinbase_tx.txid = coinbase_hash
+
     valid_transactions.insert(0, coinbase_tx)
 
     # Generate txids list including the actual TXID of the updated coinbase_tx
