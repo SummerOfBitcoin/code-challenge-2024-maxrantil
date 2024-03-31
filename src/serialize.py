@@ -51,6 +51,9 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
     # Serialize the transaction version as a 4-byte little-endian unsigned
     # integer.
     version = struct.pack("<L", coinbase_tx.version)
+    # SegWit marker and flag
+    marker = b"\x00"
+    flag = b"\x01"
     # There is always exactly one input in a coinbase transaction, represented
     # here as a single byte.
     tx_in_count = struct.pack("<B", 1)
@@ -92,16 +95,18 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
         txouts += value + script_len + scriptPubKey_bytes
 
     # Witness is the commitment and encoded in hex
-    witness_commitment = bytes.fromhex(coinbase_tx.witnesses[0][0])
-    witness_count = struct.pack("<B", 1)  # Number of witness elements
-    witness_len = struct.pack("<B", len(witness_commitment))
-    witness_data = witness_count + witness_len + witness_commitment
+    witness_count = struct.pack("<B", len(coinbase_tx.witnesses[0]))
+    witness_reserved_value = bytes.fromhex(coinbase_tx.witnesses[0][0])
+    witness_len = struct.pack("<B", len(witness_reserved_value))
+    witness_data = witness_count + witness_len + witness_reserved_value
 
     # Serialize the locktime as a 4-byte little-endian unsigned integer.
     locktime = struct.pack("<L", coinbase_tx.locktime)
     # Combine all serialized parts of the coinbase transaction.
     return (
         version +
+        marker +
+        flag +
         tx_in_count +
         txins +
         tx_out_count +
@@ -110,15 +115,17 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
         locktime).hex()
 
 
-
-# Serialize the block height as per BIP34 for inclusion in a coinbase transaction's scriptSig.
+# Serialize the block height as per BIP34 for inclusion in a coinbase
+# transaction's scriptSig.
 def serialize_block_height(block_height):
     # Convert the integer block height to a byte array in little-endian format
-    height_bytes = block_height.to_bytes((block_height.bit_length() + 7) // 8, 'little')
+    height_bytes = block_height.to_bytes(
+        (block_height.bit_length() + 7) // 8, 'little')
 
     # The length of the height_bytes determines how it will be pushed onto the stack.
     # For block heights, this will usually be a small number, so we can directly use the byte count as the opcode.
-    # This simplification assumes all block heights result in a push data size <= 75 bytes.
+    # This simplification assumes all block heights result in a push data size
+    # <= 75 bytes.
     push_opcode = len(height_bytes).to_bytes(1, 'little')
 
     return push_opcode + height_bytes

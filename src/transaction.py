@@ -9,7 +9,8 @@ from cryptography.exceptions import InvalidSignature
 from hashing import double_sha256
 from serialize import serialize_txin, serialize_txout, serialize_varint
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class Transaction:
@@ -78,7 +79,6 @@ class Transaction:
         # Convert the entire serialized transaction to a hexadecimal string for
         # easy transmission or storage.
         return serialized.hex()
-
 
     def is_valid(self):
         # Check there's at least one input and one output
@@ -191,6 +191,8 @@ def load_transactions(mempool_path='mempool/'):
                         invalid_transactions += 1
                 except json.JSONDecodeError:
                     logging.error(f"Error decoding JSON from {filename}")
-    logging.info(f"Found \033[0m\033[91m{invalid_transactions}\033[0m invalid tx.")
-    logging.info(f"Loaded \033[0m\033[92m{len(valid_transactions)}\033[0m valid tx.")
+    logging.info(
+        f"Found \033[0m\033[91m{invalid_transactions}\033[0m invalid tx.")
+    logging.info(
+        f"Loaded \033[0m\033[92m{len(valid_transactions)}\033[0m valid tx.")
     return valid_transactions

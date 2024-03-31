@@ -1,7 +1,3 @@
-import json
-
-
-
 def transaction_to_dict(tx):
     tx_dict = {
         "version": tx.version,
@@ -22,7 +18,8 @@ def transaction_to_dict(tx):
             vin_dict["witness"] = vin["witness"]
         tx_dict["vin"].append(vin_dict)
 
-    # Include top-level witness data for coinbase transactions if witness data exists
+    # Include top-level witness data for coinbase transactions if witness data
+    # exists
     if tx.is_coinbase and any(tx.witnesses):
         tx_dict["witness"] = tx.witnesses
 
