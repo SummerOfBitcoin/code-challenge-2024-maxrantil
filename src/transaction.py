@@ -1,5 +1,6 @@
 import json
 import hashlib
+import logging
 import os
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization, hashes
@@ -8,6 +9,8 @@ from cryptography.exceptions import InvalidSignature
 from hashing import double_sha256
 from serialize import serialize_txin, serialize_txout, serialize_varint
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class Transaction:
     def __init__(self, data, is_coinbase=False, txid=None):
@@ -15,8 +18,12 @@ class Transaction:
         self.locktime = data.get('locktime', 0)
         self.vin = data.get('vin', [])
         self.vout = data.get('vout', [])
-        self.witnesses = [vin.get('witness', []) for vin in self.vin]
         self.is_coinbase = is_coinbase
+        if is_coinbase:
+            self.witnesses = data.get('witness', [[]])
+        else:
+            # For regular transactions, derive witnesses from vin
+            self.witnesses = [vin.get('witness', []) for vin in self.vin]
         self.txid = txid
 
     def serialize(self, include_witness=True):
@@ -71,6 +78,7 @@ class Transaction:
         # Convert the entire serialized transaction to a hexadecimal string for
         # easy transmission or storage.
         return serialized.hex()
+
 
     def is_valid(self):
         # Check there's at least one input and one output
@@ -182,6 +190,7 @@ def load_transactions(mempool_path='mempool/'):
                     else:
                         invalid_transactions += 1
                 except json.JSONDecodeError:
-                    print(f"Error decoding JSON from {filename}")
-    print(f"Found \033[0m\033[91m{invalid_transactions}\033[0m invalid tx.")
+                    logging.error(f"Error decoding JSON from {filename}")
+    logging.info(f"Found \033[0m\033[91m{invalid_transactions}\033[0m invalid tx.")
+    logging.info(f"Loaded \033[0m\033[92m{len(valid_transactions)}\033[0m valid tx.")
     return valid_transactions
