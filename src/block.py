@@ -45,7 +45,8 @@ def mine_block(
         previous_block_hash,
         difficulty_target,
         block_height,
-        block_subsidy):
+        block_subsidy,
+        max_block_weight=4000000): # Max block weight defined by SegWit
     # Create the coinbase transaction as a Transaction instance
     coinbase_tx = create_coinbase_transaction(
         bitcoin_address, block_subsidy, block_height, valid_transactions)
@@ -56,10 +57,21 @@ def mine_block(
     coinbase_hash = double_sha256(coinbase_serialized)
     coinbase_tx.txid = coinbase_hash
 
+    #NEED TO FIGURE THIS OUT how to sort tx
     valid_transactions.insert(0, coinbase_tx)
 
+    # Start with the weight of the coinbase transaction
+    current_block_weight = coinbase_tx.weight
+    included_transactions = [coinbase_tx]
+
+    # Iterate over valid transactions to select those that fit within the block weight limit
+    for tx in valid_transactions:
+        if current_block_weight + tx.weight <= max_block_weight:
+            included_transactions.append(tx)
+            current_block_weight += tx.weight
+
     # Generate txids list including the actual TXID of the updated coinbase_tx
-    txids = [tx.txid for tx in valid_transactions]
+    txids = [tx.txid for tx in included_transactions]
 
     # Calculate the Merkle root of the txids list
     merkle_root = calculate_merkle_root(txids)
@@ -97,7 +109,7 @@ def mine_block(
     output_lines.append(coinbase_serialized)
 
     # Append the txid of the coinbase transaction and other transactions
-    for tx in valid_transactions:
+    for tx in included_transactions:
         output_lines.append(tx.txid)
 
     return output_lines
