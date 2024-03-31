@@ -26,6 +26,7 @@ class Transaction:
             # For regular transactions, derive witnesses from vin
             self.witnesses = [vin.get('witness', []) for vin in self.vin]
         self.txid = txid
+        self.weight = self.calculate_weight()
 
     def serialize(self, include_witness=True):
         # Start with serializing the transaction version as a 4-byte
@@ -121,7 +122,7 @@ class Transaction:
         #             public_key = bytes.fromhex(pubkey_hex)
 
         #             # Deserialize the public key
-        #             public_key_obj = serialization.load_der_public_key(public_key)
+        # public_key_obj = serialization.load_der_public_key(public_key)
 
         #             # Data to be signed could vary; this is a placeholder
         #             # In real scenarios, you'd reconstruct the data being signed
@@ -155,6 +156,21 @@ class Transaction:
                 concatenated_witness_data += bytes.fromhex(w)
         return concatenated_witness_data
 
+    def calculate_weight(self, ):
+        # Serialize the transaction without witness data for the base size
+        serialized_without_witness = self.serialize(include_witness=False)
+        # Divided by 2 because the hex string represents 2 hex digits per byte
+        base_size = len(serialized_without_witness) // 2
+
+        # Serialize the transaction with witness data for the total size
+        serialized_with_witness = self.serialize(include_witness=True)
+        # Similarly, divided by 2
+        total_size = len(serialized_with_witness) // 2
+
+        # Apply the weight formula
+        weight = (base_size * 3) + total_size
+        return weight
+
 
 def load_transactions(mempool_path='mempool/'):
     valid_transactions = []
@@ -165,24 +181,22 @@ def load_transactions(mempool_path='mempool/'):
                 try:
                     data = json.load(file)
                     transaction = Transaction(data)
-
-                    # Determine if any input contains a 'witness' field,
-                    # indicating a SegWit transaction
-                    is_segwit = any(
-                        'witness' in vin for vin in data.get(
-                            'vin', []))
-
-                    if is_segwit:
-                        # SegWit transactions, use the serialization method
-                        # without witness data for txid calculation.
-                        serialized_data_without_witness = transaction.serialize(
-                            include_witness=False)
-                        txid = double_sha256(serialized_data_without_witness)
-                    else:
-                        # Legacy transactions
-                        serialized_data = transaction.serialize()
-                        txid = double_sha256(serialized_data)
                     if transaction.is_valid():
+                        # Determine if any input contains a 'witness' field,
+                        # indicating a SegWit transaction
+                        if any(
+                            'witness' in vin for vin in data.get(
+                                'vin', [])):
+                            # SegWit transactions, use the serialization method
+                            # without witness data for txid calculation.
+                            serialized_data_without_witness = transaction.serialize(
+                                include_witness=False)
+                            txid = double_sha256(
+                                serialized_data_without_witness)
+                        else:
+                            # Non-SegWit transactions
+                            serialized_data = transaction.serialize()
+                            txid = double_sha256(serialized_data)
                         txid_bytes = bytes.fromhex(txid)
                         txid_little_endian = txid_bytes[::-1].hex()
                         transaction.txid = txid_little_endian
