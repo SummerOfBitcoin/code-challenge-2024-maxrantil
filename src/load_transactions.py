@@ -16,19 +16,9 @@ def load_transaction_file(file_path):
     with open(file_path, 'r') as file:
         return json.load(file)
 
-# def validate_transaction_filename(transaction, filename):
-#     """Validate transaction filename against its txid."""
-#     txid_bytes = bytes.fromhex(transaction.txid)
-#     txid_hashed = hashlib.sha256(txid_bytes).hexdigest()
-#     filename_without_extension = os.path.splitext(filename)[0]
-#     if filename_without_extension != txid_hashed:
-#         logging.info(f"Invalid tx due to txid and filename mismatch: {filename}")
-#         return False
-#     return True
 
+# Validate transaction filename against its SHA-256 hashed txid.
 def validate_transaction_filename(transaction, filename):
-    """Validate transaction filename against its SHA-256 hashed txid."""
-    # Ensure txid is in the correct format (little endian) and hash it
     txid_bytes = bytes.fromhex(transaction.txid)  # txid is expected to be in little endian
     txid_hashed = hashlib.sha256(txid_bytes).hexdigest()  # Hash the little endian bytes
 
@@ -41,7 +31,6 @@ def validate_transaction_filename(transaction, filename):
     return True
 
 
-
 def process_transaction(data, filename):
     """Process a single transaction."""
     transaction = Transaction(data)
@@ -49,12 +38,13 @@ def process_transaction(data, filename):
         return None, False
 
     # Determine transaction ID (txid) based on whether it's a SegWit transaction
-    # serialized_data = transaction.serialize(include_witness='witness' not in data)
-    serialized_data = transaction.serialize(include_witness=True)
-    print(serialized_data)
+    serialized_data = transaction.serialize(include_witness='witness' in data)
     txid = double_sha256(serialized_data)
-    transaction.txid = txid[::-1]  # Convert txid to little endian
 
+    # Convert txid to little endian
+    txid_bytes = bytes.fromhex(txid)
+    txid_little_endian = txid_bytes[::-1].hex()
+    transaction.txid = txid_little_endian
     return transaction, validate_transaction_filename(transaction, filename)
 
 def load_transactions(mempool_path='mempool/'):
