@@ -1,7 +1,7 @@
 # Perform double SHA-256 hashing on the input data.
 import hashlib
 
-from transaction import logging
+# from load_transactions import logging
 
 def double_sha256(hex_str):
     bytes_ = bytes.fromhex(hex_str)  # Convert hex string to bytes
@@ -16,21 +16,21 @@ def calculate_merkle_root(transactions):
         return None
 
     # Initial processing of transaction IDs: convert each to little-endian hex
-    # tx_hashes = []
-    # for tx in transactions:
-    #     little_endian_hex = bytes.fromhex(tx)[::-1].hex()
-    #     tx_hashes.append(little_endian_hex)
     tx_hashes = []
     for tx in transactions:
-        if tx is None:
-            logging.error("Encountered None transaction ID.")
-            continue  # Skip this transaction ID
-        try:
-            little_endian_hex = bytes.fromhex(tx)[::-1].hex()
-            tx_hashes.append(little_endian_hex)
-        except ValueError as e:
-            logging.error(f"Invalid transaction ID format: {tx}, Error: {e}")
-            continue  # Skip invalid transaction ID
+        little_endian_hex = bytes.fromhex(tx)[::-1].hex()
+        tx_hashes.append(little_endian_hex)
+    # tx_hashes = []
+    # for tx in transactions:
+    #     if tx is None:
+    #         logging.error("Encountered None transaction ID.")
+    #         continue  # Skip this transaction ID
+    #     try:
+    #         little_endian_hex = bytes.fromhex(tx)[::-1].hex()
+    #         tx_hashes.append(little_endian_hex)
+    #     except ValueError as e:
+    #         logging.error(f"Invalid transaction ID format: {tx}, Error: {e}")
+    #         continue  # Skip invalid transaction ID
 
 
     # Iteratively calculate the Merkle root

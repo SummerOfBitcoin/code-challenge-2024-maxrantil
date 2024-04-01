@@ -1,5 +1,5 @@
 from block import mine_block
-from transaction import load_transactions
+from load_transactions import load_transactions
 
 if __name__ == "__main__":
     mempool_path = 'mempool/'
