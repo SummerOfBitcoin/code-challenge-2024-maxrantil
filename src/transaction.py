@@ -1,14 +1,10 @@
-# import json
-# import hashlib
-# import logging
-# import os
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.exceptions import InvalidSignature
+import hashlib
 
-# from hashing import double_sha256
+from ecdsa import VerifyingKey, SECP256k1, BadSignatureError
+from ecdsa.util import sigdecode_der
+
 from serialize import serialize_txin, serialize_txout, serialize_varint
-
+from verify_address import get_hash_from_prevout, derive_address_from_hash
 
 class Transaction:
     def __init__(self, data, is_coinbase=False, txid=None):
@@ -79,70 +75,31 @@ class Transaction:
         return serialized.hex()
 
     def is_valid(self):
-        # Check there's at least one input and one output
-        if len(self.vin) <= 0 or len(self.vout) <= 0:
-            return False
+        # Verify signatures
+        # if not self.verify_transaction_signatures():
+        #     return False
 
-        # Sum the values of all outputs
-        total_output = sum(out["value"] for out in self.vout)
-
-        # Sum the values of all inputs
-        total_input = sum(in_["prevout"]["value"] for in_ in self.vin)
-
-        # # Ensure total input is at least as much as total output and all
-        # # outputs have positive values
-        # if total_input < total_output or any(out.get('value', 0) <= 0 for out in self.vout):
-        #     print(self.vin)
-        #     return False #Check this if 0 value out is valid       ^^
-        # Ensure total input is at least as much as total output
-        if total_input < total_output:
-            print(self.vin)
-            return False
-
-        # # Verify signatures
-        if not self.verify_signatures():
+        # Verify addresses
+        if not self.verify_addresses():
             return False
 
         return True
 
-    def verify_signatures(self):
-        # for in_ in self.vin:
-        #     # Assuming each input has one or more witnesses, where the last two are
-        #     # considered the signature and public key for simplicity
-        #     # This needs to be adjusted based on your specific use case and witness structure
-        #     if len(in_.get('witness', [])) >= 2:
-        #         signature_hex = in_['witness'][-2]
-        #         pubkey_hex = in_['witness'][-1]
 
-        #         # Convert hex to bytes
-        #         signature = bytes.fromhex(signature_hex)
-        #         public_key = bytes.fromhex(pubkey_hex)
-
-        #         # Deserialize the public key
-        #         public_key_obj = serialization.load_der_public_key(public_key)
-
-        #         # Data to be signed could vary; this is a placeholder
-        #         # In real scenarios, you'd reconstruct the data being signed
-        #         data = self.create_signing_data()
-
-        #         try:
-        #             # Assuming ECDSA and SHA256; adjust according to actual requirements
-        #             public_key_obj.verify(signature, data.encode(), ec.ECDSA(hashes.SHA256()))
-        #         except InvalidSignature:
-        #             return False  # Signature verification failed
+    def verify_addresses(self):
+        # Address verification for each input
+        for vin in self.vin:
+            prevout = vin['prevout']
+            tx_type = prevout['scriptpubkey_type']
+            # Skip checking specific tx types but continue with the loop
+            if tx_type == 'v1_p2tr':
+                continue
+            script_or_pubkey_hash = get_hash_from_prevout(prevout, tx_type)
+            address = derive_address_from_hash(script_or_pubkey_hash, tx_type)
+            if address != prevout['scriptpubkey_address']:
+                return False
         return True
 
-    # def create_signing_data(self):
-    #     # Simplified representation of the transaction for signing
-    #     # This should be adjusted based on actual transaction signing requirements
-    #     tx_parts = [
-    #         str(self.version),
-    #         str(self.locktime),
-    #         ''.join([f"{in_['txid']}:{in_['vout']}" for in_ in self.vin]),
-    #         ''.join([f"{out['value']}:{out['scriptpubkey']}" for out in self.vout])
-    #     ]
-    #     data_to_sign = hashlib.sha256(''.join(tx_parts).encode()).hexdigest()
-    #     return data_to_sign
 
     # Returns the concatenated witness data for the transaction.
     def get_witness_data(self):
@@ -167,53 +124,3 @@ class Transaction:
         # Apply the weight formula
         weight = (base_size * 3) + total_size
         return weight
-
-
-# def load_transactions(mempool_path='mempool/'):
-#     valid_transactions = []
-#     invalid_transactions = 0
-#     for filename in os.listdir(mempool_path):
-#         if filename.endswith('.json'):
-#             with open(os.path.join(mempool_path, filename), 'r') as file:
-#                 try:
-#                     data = json.load(file)
-#                     transaction = Transaction(data)
-#                     if transaction.is_valid():
-#                         # Determine if any input contains a 'witness' field,
-#                         # indicating a SegWit transaction
-#                         if any(
-#                             'witness' in vin for vin in data.get(
-#                                 'vin', [])):
-#                             # SegWit transactions, use the serialization method
-#                             # without witness data for txid calculation.
-#                             serialized_data_without_witness = transaction.serialize(
-#                                 include_witness=False)
-#                             txid = double_sha256(
-#                                 serialized_data_without_witness)
-#                         else:
-#                             # Non-SegWit transactions
-#                             serialized_data = transaction.serialize()
-#                             txid = double_sha256(serialized_data)
-
-#                         txid_bytes = bytes.fromhex(txid)
-#                         txid_little_endian = txid_bytes[::-1].hex()
-#                         transaction.txid = txid_little_endian
-
-#                         # Convert the txid to bytes, hash it, and then get the hex representation of this hash
-#                         txid_hashed = hashlib.sha256(bytes.fromhex(txid_little_endian)).hexdigest()
-#                         filename_without_extension = os.path.splitext(filename)[0]
-#                         # Compare the hashed txid to the filename without its extension
-#                         if filename_without_extension != txid_hashed:
-#                             logging.info(f"Invalid tx due to txid and filename mismatch: {filename}")
-#                             invalid_transactions += 1
-#                         else:
-#                             valid_transactions.append(transaction)
-#                     else:
-#                         invalid_transactions += 1
-#                 except json.JSONDecodeError:
-#                     logging.error(f"Error decoding JSON from {filename}")
-#     logging.info(
-#         f"Found \033[0m\033[91m{invalid_transactions}\033[0m invalid tx.")
-#     logging.info(
-#         f"Loaded \033[0m\033[92m{len(valid_transactions)}\033[0m valid tx.")
-#     return valid_transactions
