@@ -1,7 +1,8 @@
 import base58
+import hashlib
 
 from transaction import Transaction
-from hashing import double_sha256
+from hashing import double_sha256, calculate_merkle_root
 from serialize import serialize_block_height
 
 
@@ -16,15 +17,39 @@ def bitcoin_address_to_script_pub_key(bitcoin_address):
         bytes([len(decoded[1:])]) + decoded[1:] + b'\x88\xac'
     return script_pub_key.hex()
 
+def reverse_hex_string(hex_str):
+    # Convert hex string to bytes
+    byte_seq = bytes.fromhex(hex_str)
 
-def calculate_witness_commitment(transactions):
-    all_witness_data = b''
-    for tx in transactions:
-        witness_data = tx.get_witness_data()
-        all_witness_data += witness_data
+    # Reverse the byte sequence
+    reversed_byte_seq = byte_seq[::-1]
 
-    # Double SHA-256 hash of the concatenated witness data
-    return double_sha256(all_witness_data.hex())
+    # Convert back to hex string
+    reversed_hex_str = reversed_byte_seq.hex()
+
+    return reversed_hex_str
+
+def calculate_witness_commitment(transactions, witness_reserved_value):
+    # Reverse the hex string of the double SHA-256 hash of each transaction's Witness Transaction ID (wtxid)
+    all_tx_wtxids = [reverse_hex_string(double_sha256(tx.get_wtxid())) for tx in transactions]
+
+    # Insert the witness reserved value at the beginning of the list of all transaction wtxids.
+    # This is presumably to include a specific reserved value in the calculation of the Merkle root,
+    # which is a requirement for witness commitments in SegWit.
+    all_tx_wtxids.insert(0, witness_reserved_value)
+
+    # Calculate the Merkle root of all transaction wtxids
+    merkle_root_of_wtxids = calculate_merkle_root(all_tx_wtxids)
+
+    # Concatenate the calculated Merkle root with the witness reserved value to form a combined string.
+    combined = merkle_root_of_wtxids + witness_reserved_value
+
+    # Calculate the double SHA-256 hash of the combined Merkle root and witness reserved value.
+    # This final hash is the witness commitment, which is included in a SegWit coinbase transaction.
+    witness_commitment = double_sha256(combined)
+
+    return witness_commitment
+
 
 
 def create_coinbase_transaction(
@@ -40,10 +65,10 @@ def create_coinbase_transaction(
 
     script_pub_key = bitcoin_address_to_script_pub_key(bitcoin_address)
 
+    # Reserved value for future Bitcoin updates
+    witness_reserved_value = "0000000000000000000000000000000000000000000000000000000000000000"
     # The witness commitment is calculated from all transactions in the block
-    # UNCOMMENT FOR REAL WORK, WIP CAN BE COMMENTED FOR SPEED
-    # witness_commitment = calculate_witness_commitment(valid_transactions)
-    witness_commitment = "d8e11800e7bf85a5fbeeed9aefdd539e94fc6bd3036801f564933a838726d73e"
+    witness_commitment = calculate_witness_commitment(valid_transactions, witness_reserved_value)
 
     # Coinbase transaction must include the block height as per BIP34, and
     # optionally extra nonce data,
@@ -54,20 +79,6 @@ def create_coinbase_transaction(
     # commitment hash
     witness_commitment_script = "6a24aa21a9ed" + witness_commitment
 
-    # Reserved value for future Bitcoin updates
-    witness_reserved_value = "0000000000000000000000000000000000000000000000000000000000000000"
-
-    outputs = [
-        {
-            "value": total_value,
-            "scriptpubkey": script_pub_key,
-        },
-        {
-            "value": 0,  # No value is transferred with the witness commitment output
-            "scriptpubkey": witness_commitment_script,
-        }
-    ]
-
     coinbase_tx_data = {
         "version": 2,
         "locktime": 0,
@@ -77,8 +88,18 @@ def create_coinbase_transaction(
             "scriptsig": coinbase_data.hex(),
             "sequence": 0xffffffff
         }],
-        "vout": outputs,
+        "vout": [
+            {
+                "value": total_value,
+                "scriptpubkey": script_pub_key,
+            },
+            {
+                "value": 0,  # No value is transferred with the witness commitment output
+                "scriptpubkey": witness_commitment_script,
+            }
+        ],
         "witness": [[witness_reserved_value]]
     }
 
+    print("Witness commitment in coinbase tx:", witness_commitment_script)
     return Transaction(coinbase_tx_data, is_coinbase=True)

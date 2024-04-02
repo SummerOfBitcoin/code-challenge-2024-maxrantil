@@ -20,18 +20,6 @@ def calculate_merkle_root(transactions):
     for tx in transactions:
         little_endian_hex = bytes.fromhex(tx)[::-1].hex()
         tx_hashes.append(little_endian_hex)
-    # tx_hashes = []
-    # for tx in transactions:
-    #     if tx is None:
-    #         logging.error("Encountered None transaction ID.")
-    #         continue  # Skip this transaction ID
-    #     try:
-    #         little_endian_hex = bytes.fromhex(tx)[::-1].hex()
-    #         tx_hashes.append(little_endian_hex)
-    #     except ValueError as e:
-    #         logging.error(f"Invalid transaction ID format: {tx}, Error: {e}")
-    #         continue  # Skip invalid transaction ID
-
 
     # Iteratively calculate the Merkle root
     while len(tx_hashes) > 1:
