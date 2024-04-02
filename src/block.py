@@ -47,28 +47,27 @@ def mine_block(
         block_height,
         block_subsidy,
         max_block_weight=4000000): # Max block weight defined by SegWit
+    included_transactions = []  # Initialize the list of transactions to include in the block.
+
+    current_block_weight = 0  # Placeholder for calculating total weight of included transactions
+
+    # Iterate over valid transactions to select those that fit within the block weight limit.
+    for tx in valid_transactions:
+        if current_block_weight + tx.weight <= max_block_weight - 544:  # 544 is the size of the coinbase tx
+            included_transactions.append(tx)
+            current_block_weight += tx.weight
+
     # Create the coinbase transaction as a Transaction instance
     coinbase_tx = create_coinbase_transaction(
-        bitcoin_address, block_subsidy, block_height, valid_transactions)
+        bitcoin_address, block_subsidy, block_height, included_transactions)
     coinbase_serialized = serialize_coinbase_tx(coinbase_tx, block_height)
 
-    # Insert the hashed coinbase transaction at the beginning of the list of
-    # valid transactions
+    # Compute the coinbase transaction hash and assign it as its txid
     coinbase_hash = double_sha256(coinbase_serialized)
     coinbase_tx.txid = coinbase_hash
 
-    #NEED TO FIGURE THIS OUT how to sort tx. Put this in valid at first place instead.
-    valid_transactions.insert(0, coinbase_tx)
-    # included_transactions = [coinbase_tx]
-
-    # Iterate over valid transactions to select those that fit within the block weight limit
-    # Start with the weight of the coinbase transaction
-    current_block_weight = coinbase_tx.weight
-    included_transactions = []
-    for tx in valid_transactions:
-        if current_block_weight + tx.weight <= max_block_weight:
-            included_transactions.append(tx)
-            current_block_weight += tx.weight
+    # Prepend the coinbase transaction to the list of included transactions
+    included_transactions.insert(0, coinbase_tx)
 
     # Generate txids list including the actual TXID of the updated coinbase_tx
     txids = [tx.txid for tx in included_transactions]

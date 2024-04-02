@@ -5,7 +5,7 @@ from ecdsa.util import sigdecode_der
 
 from serialize import serialize_txin, serialize_txout, serialize_varint
 from verify_address import get_hash_from_prevout, derive_address_from_hash
-
+from hashing import double_sha256
 class Transaction:
     def __init__(self, data, is_coinbase=False, txid=None):
         self.version = data.get('version', 1)
@@ -19,7 +19,11 @@ class Transaction:
             # For regular transactions, derive witnesses from vin
             self.witnesses = [vin.get('witness', []) for vin in self.vin]
         self.txid = txid
+        # self.serialized = self.serialize(include_witness=True)
         self.weight = self.calculate_weight()
+
+    def is_segwit(self):
+        return any(witness for witness in self.witnesses)
 
     def serialize(self, include_witness=True):
         # Start with serializing the transaction version as a 4-byte
@@ -85,7 +89,6 @@ class Transaction:
 
         return True
 
-
     def verify_addresses(self):
         # Address verification for each input
         for vin in self.vin:
@@ -99,16 +102,6 @@ class Transaction:
             if address != prevout['scriptpubkey_address']:
                 return False
         return True
-
-
-    # Returns the concatenated witness data for the transaction.
-    def get_witness_data(self):
-        concatenated_witness_data = b''
-        for witness in self.witnesses:
-            # Convert each witness item from hex to bytes and concatenate
-            for w in witness:
-                concatenated_witness_data += bytes.fromhex(w)
-        return concatenated_witness_data
 
     def calculate_weight(self, ):
         # Serialize the transaction without witness data for the base size
@@ -124,3 +117,11 @@ class Transaction:
         # Apply the weight formula
         weight = (base_size * 3) + total_size
         return weight
+
+    def get_wtxid(self):
+        # Serialize the transaction including its witness data
+        serialized_tx_with_witness = self.serialize(include_witness=True)
+        # Compute the double SHA256 of the serialized transaction with witness
+        # and return the result as a hexadecimal string
+        # return double_sha256(serialized_tx_with_witness)
+        return serialized_tx_with_witness
