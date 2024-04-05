@@ -2,7 +2,7 @@ import time
 import struct
 
 from coinbase import create_coinbase_transaction
-from hashing import double_sha256, calculate_merkle_root
+from hashing import hash256, calculate_merkle_root
 from serialize import serialize_coinbase_tx
 
 
@@ -46,14 +46,26 @@ def mine_block(
         difficulty_target,
         block_height,
         block_subsidy,
-        max_block_weight=4000000): # Max block weight defined by SegWit
-    included_transactions = []  # Initialize the list of transactions to include in the block.
-
-    current_block_weight = 0  # Placeholder for calculating total weight of included transactions
-
-    # Iterate over valid transactions to select those that fit within the block weight limit.
+        max_block_weight=4000000,
+        estimated_coinbase_weight=544):  # Max block weight defined by SegWit
+    # Calculate fee per weight unit for each transaction and add it as an
+    # attribute.
     for tx in valid_transactions:
-        if current_block_weight + tx.weight <= max_block_weight - 544:  # 544 is the size of the coinbase tx
+        tx.fee_per_weight = tx.fee / tx.weight
+
+    # Sort transactions by fee per weight unit in descending order.
+    valid_transactions.sort(key=lambda x: x.fee_per_weight, reverse=True)
+
+    # Initialize the list of transactions to include in the block.
+    included_transactions = []
+
+    # Placeholder for calculating total weight of included transactions
+    current_block_weight = 0
+
+    # Iterate over valid transactions to select those that fit within the
+    # block weight limit.
+    for tx in valid_transactions:
+        if current_block_weight + tx.weight <= max_block_weight - estimated_coinbase_weight:
             included_transactions.append(tx)
             current_block_weight += tx.weight
 
@@ -63,7 +75,7 @@ def mine_block(
     coinbase_serialized = serialize_coinbase_tx(coinbase_tx, block_height)
 
     # Compute the coinbase transaction hash and assign it as its txid
-    coinbase_hash = double_sha256(coinbase_serialized)
+    coinbase_hash = hash256(coinbase_serialized)
     coinbase_tx.txid = coinbase_hash
 
     # Prepend the coinbase transaction to the list of included transactions
@@ -94,7 +106,7 @@ def mine_block(
             bits,
             nonce)
 
-        header_hash = double_sha256(header.hex())
+        header_hash = hash256(header.hex())
         reversed_hash = header_hash[::-1]
 
         if int(reversed_hash, 16) < int(difficulty_target, 16):

@@ -20,13 +20,54 @@ def serialize_varint(i):
         return b'\xff' + i.to_bytes(8, byteorder='little')
 
 
+def deserialize_varint(data):
+    # Convert the input data to bytes if it's a string
+    if isinstance(data, str):
+        data = bytes.fromhex(data)
+
+    # Ensure that the input data has sufficient length
+    if len(data) == 0:
+        raise ValueError("Input data is empty")
+
+    # Read the first byte
+    value = data[0]
+    remaining_data = data[1:]
+
+    # If the value is less than 0xfd, it's a single byte varint
+    if value < 0xfd:
+        return value, remaining_data
+    # For values between 0xfd and 0xffff, read the next 2 bytes
+    elif value == 0xfd:
+        if len(remaining_data) < 2:
+            raise ValueError("Insufficient data for varint decoding")
+        return int.from_bytes(
+            remaining_data[:2], byteorder='little'), remaining_data[2:]
+    # For values between 0x10000 and 0xffffffff, read the next 4 bytes
+    elif value == 0xfe:
+        if len(remaining_data) < 4:
+            raise ValueError("Insufficient data for varint decoding")
+        return int.from_bytes(
+            remaining_data[:4], byteorder='little'), remaining_data[4:]
+    # For larger values, read the next 8 bytes
+    else:
+        if len(remaining_data) < 8:
+            raise ValueError("Insufficient data for varint decoding")
+        return int.from_bytes(
+            remaining_data[:8], byteorder='little'), remaining_data[8:]
+
+
 # Serialize a transaction input.
-def serialize_txin(txin):
+def serialize_txin(txin, script_override=None):
     # Previous Transaction Hash, 32 bytes (little-endian)
     serialized = bytes.fromhex(txin['txid'])[::-1]  # Reverse byte order
     # Previous Transaction Output Index, 4 bytes (little-endian)
     serialized += txin['vout'].to_bytes(4, byteorder='little', signed=False)
     # ScriptSig Size, 1–9 bytes (VarInt)
+    # Use script_override if provided for the purpose of signature
+    # verification, otherwise use the scriptsig from txin
+    script_bytes = bytes.fromhex(
+        script_override if script_override is not None else txin.get(
+            'scriptsig', ''))
     scriptsig_bytes = bytes.fromhex(txin.get('scriptsig', ''))
     # ScriptSig with its length
     serialized += serialize_varint(len(scriptsig_bytes)) + scriptsig_bytes
@@ -88,7 +129,7 @@ def serialize_coinbase_tx(coinbase_tx, block_height):
         # Serialize the output value as an 8-byte little-endian unsigned
         # integer.
         value = struct.pack("<Q", out["value"])
-        # Assuming P2PKH scriptPubKey format, serialize the scriptPubKey.
+        # Serialize the scriptPubKey.
         scriptPubKey_bytes = bytes.fromhex(out["scriptpubkey"])
         script_len = struct.pack("<B", len(scriptPubKey_bytes))
         # Combine the serialized value and scriptPubKey for each output.
