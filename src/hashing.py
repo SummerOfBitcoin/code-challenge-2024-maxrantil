@@ -1,9 +1,7 @@
-# Perform double SHA-256 hashing on the input data.
 import hashlib
 
-# from load_transactions import logging
 
-def double_sha256(hex_str):
+def hash256(hex_str):
     bytes_ = bytes.fromhex(hex_str)  # Convert hex string to bytes
     hash_once = hashlib.sha256(bytes_).digest()
     hash_twice = hashlib.sha256(hash_once).digest()
@@ -34,7 +32,7 @@ def calculate_merkle_root(transactions):
                 combined_hash = tx_hashes[i] + tx_hashes[i + 1]
 
             # Hash the combined pair
-            pair_hash = double_sha256(combined_hash)
+            pair_hash = hash256(combined_hash)
             next_level.append(pair_hash)
 
         # Update tx_hashes with the hashes from the current level

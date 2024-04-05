@@ -4,7 +4,7 @@ import logging
 import os
 
 from transaction import Transaction
-from hashing import double_sha256
+from hashing import hash256
 
 
 logging.basicConfig(level=logging.INFO,
@@ -19,14 +19,17 @@ def load_transaction_file(file_path):
 
 # Validate transaction filename against its SHA-256 hashed txid.
 def validate_transaction_filename(transaction, filename):
-    txid_bytes = bytes.fromhex(transaction.txid)  # txid is expected to be in little endian
-    txid_hashed = hashlib.sha256(txid_bytes).hexdigest()  # Hash the little endian bytes
+    # txid is expected to be in little endian
+    txid_bytes = bytes.fromhex(transaction.txid)
+    # Hash the little endian bytes
+    txid_hashed = hashlib.sha256(txid_bytes).hexdigest()
 
     # Extract the filename without extension for comparison
     filename_without_extension = os.path.splitext(filename)[0]
 
     if filename_without_extension != txid_hashed:
-        logging.info(f"Invalid tx due to txid and filename mismatch: {filename}")
+        logging.info(
+            f"Invalid tx due to txid and filename mismatch: {filename}")
         return False
     return True
 
@@ -37,15 +40,17 @@ def process_transaction(data, filename):
     if not transaction.is_valid():
         return None, False
 
-    # Determine transaction ID (txid) based on whether it's a SegWit transaction
+    # Determine transaction ID (txid) based on whether it's a SegWit
+    # transaction
     serialized_data = transaction.serialize(include_witness='witness' in data)
-    txid = double_sha256(serialized_data)
+    txid = hash256(serialized_data)
 
     # Convert txid to little endian
     txid_bytes = bytes.fromhex(txid)
     txid_little_endian = txid_bytes[::-1].hex()
     transaction.txid = txid_little_endian
     return transaction, validate_transaction_filename(transaction, filename)
+
 
 def load_transactions(mempool_path='mempool/'):
     valid_transactions = []
@@ -54,7 +59,8 @@ def load_transactions(mempool_path='mempool/'):
     for filename in os.listdir(mempool_path):
         if filename.endswith('.json'):
             try:
-                data = load_transaction_file(os.path.join(mempool_path, filename))
+                data = load_transaction_file(
+                    os.path.join(mempool_path, filename))
                 transaction, is_valid = process_transaction(data, filename)
                 if transaction and is_valid:
                     valid_transactions.append(transaction)

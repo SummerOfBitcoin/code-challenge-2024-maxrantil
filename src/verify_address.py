@@ -2,9 +2,14 @@ import base58
 import bech32
 import hashlib
 
+
 def calculate_checksum(version_byte, hash_bytes):
     """Calculate the checksum for a given version byte and hash bytes."""
-    return hashlib.sha256(hashlib.sha256(version_byte + hash_bytes).digest()).digest()[:4]
+    return hashlib.sha256(
+        hashlib.sha256(
+            version_byte +
+            hash_bytes).digest()).digest()[
+        :4]
 
 
 def base58check_encode(version_byte, hash_bytes):
@@ -39,10 +44,13 @@ def derive_address_from_hash(hash_data, tx_type):
 
 def base58check_encode(version_byte, hash_bytes):
     """Encode version byte and hash bytes into a Base58Check format."""
-    checksum = hashlib.sha256(hashlib.sha256(version_byte + hash_bytes).digest()).digest()[:4]
+    checksum = hashlib.sha256(
+        hashlib.sha256(
+            version_byte +
+            hash_bytes).digest()).digest()[
+        :4]
     payload = version_byte + hash_bytes + checksum
     return base58.b58encode(payload).decode('utf-8')
-
 
 
 # Encode a Bech32 address.
@@ -67,13 +75,15 @@ def get_hash_from_prevout(prevout, tx_type):
         index = parts.index("OP_PUSHBYTES_20") + 1
         return parts[index] if len(parts) > index else None
     elif tx_type == "v0_p2wpkh":
-        # Extract the pubkey hash for P2WPKH, which is embedded in the scriptPubKey
+        # Extract the pubkey hash for P2WPKH, which is embedded in the
+        # scriptPubKey
         script = prevout["scriptpubkey"]
         # P2WPKH scriptpubkey format: "0014{20-byte pubkey hash}"
         if script.startswith("0014"):
             return script[4:]  # Extract and return the pubkey hash
     elif tx_type == "v0_p2wsh":
-        # Extract the script hash for P2WSH, which is embedded in the scriptPubKey
+        # Extract the script hash for P2WSH, which is embedded in the
+        # scriptPubKey
         script = prevout["scriptpubkey"]
         # P2WSH scriptpubkey format: "0020{32-byte script hash}"
         if script.startswith("0020"):

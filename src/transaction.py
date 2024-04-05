@@ -1,11 +1,13 @@
 import hashlib
 
-from ecdsa import VerifyingKey, SECP256k1, BadSignatureError
+from ecdsa import VerifyingKey, SECP256k1, BadSignatureError, util
 from ecdsa.util import sigdecode_der
 
-from serialize import serialize_txin, serialize_txout, serialize_varint
+from serialize import serialize_txin, serialize_txout, serialize_varint, deserialize_varint
 from verify_address import get_hash_from_prevout, derive_address_from_hash
-from hashing import double_sha256
+from hashing import hash256
+
+
 class Transaction:
     def __init__(self, data, is_coinbase=False, txid=None):
         self.version = data.get('version', 1)
@@ -21,6 +23,7 @@ class Transaction:
         self.txid = txid
         # self.serialized = self.serialize(include_witness=True)
         self.weight = self.calculate_weight()
+        self.fee = self.calculate_fee()
 
     def is_segwit(self):
         return any(witness for witness in self.witnesses)
@@ -80,8 +83,11 @@ class Transaction:
 
     def is_valid(self):
         # Verify signatures
-        # if not self.verify_transaction_signatures():
-        #     return False
+        # Check if the transaction is not SegWit and all inputs are P2PKH
+        # if not self.is_segwit() and all(vin['prevout']['scriptpubkey_type'] == 'p2pkh' for vin in self.vin):
+        #     # Proceed with signature verification if the above condition is true
+        #     if not self.verify_transaction_signatures():
+        #         return False
 
         # Verify addresses
         if not self.verify_addresses():
@@ -118,10 +124,70 @@ class Transaction:
         weight = (base_size * 3) + total_size
         return weight
 
+    def calculate_fee(self):
+        # Summing up the values of the transaction outputs.
+        total_output_value = sum(vout['value'] for vout in self.vout)
+        if self.is_coinbase:
+            return 0
+        else:
+            total_input_value = sum(vin['prevout']['value']
+                                    for vin in self.vin if 'prevout' in vin)
+            # Calculate the fee as the difference between the total input and
+            # output values.
+            return total_input_value - total_output_value
+
     def get_wtxid(self):
         # Serialize the transaction including its witness data
         serialized_tx_with_witness = self.serialize(include_witness=True)
         # Compute the double SHA256 of the serialized transaction with witness
         # and return the result as a hexadecimal string
-        # return double_sha256(serialized_tx_with_witness)
+        # return hash256(serialized_tx_with_witness)
         return serialized_tx_with_witness
+
+    # def verify_transaction_signatures(self):
+    #     # Iterate through each input
+    #     for vin in self.vin:
+    #         # Extract the scriptsig
+    #         scriptsig = vin.get('scriptsig', '')
+    #         if not scriptsig:
+    #             return False  # Scriptsig is missing
+
+    #         # Decode the VarInt representing the length of the signature
+    #         signature_length, scriptsig = deserialize_varint(scriptsig)
+    #         # Extract the signature using the decoded length
+    # signature = scriptsig[:signature_length * 2]  # Multiply by 2 to account
+    # for hexadecimal encoding
+
+    #         # Remove the extracted signature from scriptsig
+    #         scriptsig = scriptsig[signature_length * 2:]
+
+    #         # Decode the VarInt representing the length of the public key
+    #         public_key_length, scriptsig = deserialize_varint(scriptsig)
+    #         # Extract the public key using the decoded length
+    # public_key = scriptsig[:public_key_length * 2]  # Multiply by 2 to
+    # account for hexadecimal encoding
+
+    #         # Reconstruct the script
+    #         script_pubkey = vin['prevout'].get('scriptpubkey', '')
+    #         if not script_pubkey:
+    #             return False  # Script pubkey is missing
+
+    #         # Construct the complete script
+    #         reconstructed_script = f"{signature} {public_key} {script_pubkey}"
+
+    #         # Serialize the transaction without the scriptsig for signature verification
+    #         serialized_tx_without_scriptsig = serialize_txin(self, script_override=True)
+
+    #         # Hash the transaction data
+    #         tx_hash = hash256(serialized_tx_without_scriptsig)
+
+    #         # Verify the signature
+    #         try:
+    #             verifying_key = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
+    #             signature_der = sigdecode_der(bytes.fromhex(signature))
+    #             if not verifying_key.verify(signature_der, tx_hash, hashfunc=hashlib.sha256):
+    #                 return False  # Signature verification failed
+    #         except (BadSignatureError, ValueError):
+    #             return False  # Error occurred during signature verification
+
+    #     return True  # All signatures verified successfully

@@ -2,7 +2,7 @@ import base58
 import hashlib
 
 from transaction import Transaction
-from hashing import double_sha256, calculate_merkle_root
+from hashing import hash256, calculate_merkle_root
 from serialize import serialize_block_height
 
 
@@ -17,6 +17,7 @@ def bitcoin_address_to_script_pub_key(bitcoin_address):
         bytes([len(decoded[1:])]) + decoded[1:] + b'\x88\xac'
     return script_pub_key.hex()
 
+
 def reverse_hex_string(hex_str):
     # Convert hex string to bytes
     byte_seq = bytes.fromhex(hex_str)
@@ -29,9 +30,14 @@ def reverse_hex_string(hex_str):
 
     return reversed_hex_str
 
+
 def calculate_witness_commitment(transactions, witness_reserved_value):
-    # Reverse the hex string of the double SHA-256 hash of each transaction's Witness Transaction ID (wtxid)
-    all_tx_wtxids = [reverse_hex_string(double_sha256(tx.get_wtxid())) for tx in transactions]
+    # Reverse the hex string of the double SHA-256 hash of each transaction's
+    # Witness Transaction ID (wtxid)
+    all_tx_wtxids = [
+        reverse_hex_string(
+            hash256(
+                tx.get_wtxid())) for tx in transactions]
 
     # Insert the witness reserved value at the beginning of the list of all transaction wtxids.
     # This is presumably to include a specific reserved value in the calculation of the Merkle root,
@@ -41,15 +47,16 @@ def calculate_witness_commitment(transactions, witness_reserved_value):
     # Calculate the Merkle root of all transaction wtxids
     merkle_root_of_wtxids = calculate_merkle_root(all_tx_wtxids)
 
-    # Concatenate the calculated Merkle root with the witness reserved value to form a combined string.
+    # Concatenate the calculated Merkle root with the witness reserved value
+    # to form a combined string.
     combined = merkle_root_of_wtxids + witness_reserved_value
 
     # Calculate the double SHA-256 hash of the combined Merkle root and witness reserved value.
-    # This final hash is the witness commitment, which is included in a SegWit coinbase transaction.
-    witness_commitment = double_sha256(combined)
+    # This final hash is the witness commitment, which is included in a SegWit
+    # coinbase transaction.
+    witness_commitment = hash256(combined)
 
     return witness_commitment
-
 
 
 def create_coinbase_transaction(
@@ -68,7 +75,8 @@ def create_coinbase_transaction(
     # Reserved value for future Bitcoin updates
     witness_reserved_value = "0000000000000000000000000000000000000000000000000000000000000000"
     # The witness commitment is calculated from all transactions in the block
-    witness_commitment = calculate_witness_commitment(valid_transactions, witness_reserved_value)
+    witness_commitment = calculate_witness_commitment(
+        valid_transactions, witness_reserved_value)
 
     # Coinbase transaction must include the block height as per BIP34, and
     # optionally extra nonce data,
